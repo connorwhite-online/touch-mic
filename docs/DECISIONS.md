@@ -133,3 +133,32 @@ costs fractional sensitivity. Filling the whole interior may give ~50–100 pF
 baseline against a 1–5 pF finger, a 2–5 % change. The answer may be filling most
 of the volume rather than all of it. This is the first thing the test rig must
 measure.
+
+## 2026-10-22 — Reversal: printed electrode, not foam
+
+**Supersedes the foam decision above.** Foam is retained in
+[`hardware/BOM.md`](../hardware/BOM.md) only as a fallback.
+
+**Why the reversal:** foam fails the project's actual goal, which is that a
+stranger can reproduce this. It ships as sheets, so somebody cuts it; hand-cut
+electrodes vary in shape; varying shape means varying baseline capacitance;
+which means tuning numbers published here would not transfer to anyone else's
+build. It also cannot be specified as a part number — "black conductive foam" is
+a category containing a trap (the far more common pink dissipative grade is too
+resistive to work).
+
+**What replaces it:** a Conductive PLA puck, printed from
+[`hardware/test-rig.scad`](../hardware/test-rig.scad). The electrode stops being
+something you source and becomes a file — identical every time, no cutting, and
+orderable from the same service as the body. In the finished device the same
+part is also the rigid core that anchors the board and that the floating shell
+floats around.
+
+**Cost of the reversal:** the electrode is rigid rather than soft. Acceptable,
+because the core had to be rigid anyway to anchor the USB-C connector — the
+compliance comes from the printed TPU ribs, which is where the original
+floating-shell concept put it.
+
+**General principle this established:** for an open-source device, prefer a part
+that is a *file* over a part that is *bought and modified*. Reproducibility beats
+bench convenience.

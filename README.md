@@ -58,7 +58,7 @@ hold-to-talk.
 |---|---|
 | [`firmware/`](firmware/) | CircuitPython for the XIAO SAMD21, with live tuning telemetry |
 | [`host/`](host/) | The Hammerspoon config that presses Claude's dictation control |
-| [`hardware/`](hardware/) | Bill of materials and sourcing |
+| [`hardware/`](hardware/) | Bill of materials, and a parametric OpenSCAD test rig |
 | [`docs/`](docs/) | Decision log and research, with sources and open questions |
 
 ## The one dependency that is not open

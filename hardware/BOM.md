@@ -1,22 +1,29 @@
 # Bill of materials
 
-Two parts and a print. Every component is off-the-shelf and multi-sourced.
+One board, two printed files, one wire. Nothing to cut, nothing to fabricate.
 
-| # | Part | Role | Approx. |
+| # | Part | Role | How you get it |
 |---|---|---|---|
-| 1 | Seeed XIAO SAMD21 | Hardware capacitive touch, native USB-C, acts as a keyboard | ~$7 |
-| 2 | Black conductive PU foam | Electrode **and** compliant support **and** electrical contact | pennies |
-| 3 | SLS Flexible TPU print | The body | quote |
+| 1 | Seeed XIAO SAMD21 | Touch sensing, USB-C, acts as a keyboard | ~$7, widely stocked |
+| 2 | Electrode | Senses your finger | **Printed** — conductive PLA, file in this repo |
+| 3 | Body | The soft shell | **Printed** — SLS TPU |
+| 4 | One wire | A0 → electrode | Any hookup wire |
 
-No PCB to design, no USB-C receptacle to source, no CC pull-down resistors to
-get right, no fasteners, no solder joint — if the foam-on-pad contact holds.
+No PCB to design, no USB-C receptacle to source, no CC pull-down resistors, no
+fasteners. Both printed parts can be ordered from the same place, so a builder
+with no printer still gets everything in the mail.
 
 ## 1. XIAO SAMD21
 
-Chosen because it is the only small board that has **hardware** capacitive touch
-(the SAMD21's Peripheral Touch Controller) **and** native USB in one chip, with
-no external resistors, capacitors or sensing ICs required. 21 × 17.8 mm, and the
-USB-C connector is already on it, so the board *is* the port.
+The only small board with **hardware** capacitive touch (the SAMD21's Peripheral
+Touch Controller) **and** native USB in one chip — no external resistors,
+capacitors or sensing ICs. 21 × 17.8 mm, and the USB-C connector is already on
+it, so the board *is* the port.
+
+It also gives you a raw capacitance reading, which a fixed-function touch IC
+like a TTP223 cannot. That is what makes the signal-strength logging in
+[`firmware/code.py`](../firmware/code.py) possible, and it is why tuning this
+device is measurement rather than guesswork.
 
 Open hardware — Seeed publishes the full design package:
 
@@ -35,76 +42,88 @@ and Seeed direct.
 **Unverified:** which pins support QTouch. A
 [reseller manual](https://shillehtek.com/blogs/shillehtek-product-manuals/seeeduino-xiao-samd21-arduino-board-presoldered-manual)
 says A0, A6, A7; Seeed's own wiki does not list them. Single-source, so treat as
-likely rather than certain. CircuitPython's `touchio` settles it in seconds on
-arrival — the firmware defaults to A0.
+likely rather than certain. `touchio` settles it in seconds on arrival — the
+firmware defaults to A0.
 
 ### Rejected alternatives
 
 | Board | Why not |
 |---|---|
-| ESP32-S3 | Native touch and USB, but it is a radio chip — larger, thirstier, and needs a USB-OTG mode switch |
-| RP2040 | No hardware touch; `touchio` falls back to software charge-timing with a 1 MΩ resistor |
+| ESP32-S3 | Native touch and USB, but a radio chip — larger, thirstier, needs a USB-OTG mode switch |
+| RP2040 | No hardware touch; falls back to software charge-timing with a 1 MΩ resistor |
 | CH32V003 | No USB peripheral at all |
-| AT42QT1011/1012 + separate MCU | Robust two-chip production path, but two chips where one will do |
+| TTP223 / AT42QT101x | Fixed-function: gives you a yes/no, not a number. No way to tune or debug |
 
-## 2. Black conductive foam — read this before buying
+## 2. The electrode — printed, not sourced
 
-Two very different products are both sold as "anti-static foam":
+**Print it in Conductive PLA** from [`test-rig.scad`](test-rig.scad) (`part="puck"`),
+and in the final device as the inner core.
 
-| Type | Colour | Resistance | Use it? |
-|---|---|---|---|
-| **Conductive** | **Black** | 10³–10⁶ Ω | **Yes** |
-| Dissipative | Pink | 10⁶–10⁹ Ω and up | No |
+This is a deliberate reversal of an earlier decision to use conductive foam.
+Foam works electrically, but it ships as sheets, so somebody has to cut it —
+which means the electrode's shape varies between builds, which means tuning
+numbers don't transfer from one person's unit to the next. A printed electrode
+is a file: identical geometry every time, no cutting, no sourcing ambiguity, and
+orderable from the same service as the body.
 
-**The pink one is far more common and will not work.** The arithmetic: the
-electrode is charged and discharged at roughly 100 kHz, so its RC time constant
-must stay well under a ~10 µs scan cycle. For a ~40 mm electrode at ~50 pF:
+In the finished device the same part does three jobs: it is the electrode, the
+rigid core that anchors the board, and the thing the floating shell floats
+around.
 
-| Material | Typical resistivity | Rough RC | Verdict |
-|---|---|---|---|
-| Conductive PU foam | 10²–10⁵ Ω·cm | ~125 ns | Comfortable |
-| TPU-ESD, good grade | ~10⁶ Ω·cm | ~12 µs | Marginal |
-| TPU-ESD, poor grade | ~10⁹ Ω·cm | ~12 ms | Dead |
+**Conductivity is not the constraint people expect.** You are not carrying
+current — you are charging and discharging a plate at roughly 100 kHz, so what
+matters is that the electrode's RC time constant stays well under a ~10 µs scan
+cycle. The practical ceiling is around **30 kΩ** ([Capricate, UIST'15](https://mschmitz.org/publications/schmitz-UIST15-capricate.pdf)).
 
-Order-of-magnitude estimates, not datasheet values — but the shape of the answer
-is robust. Look for a volume resistance spec per **ANSI/ESD STM11.12**.
+| Material | Typical resistivity | Verdict |
+|---|---|---|
+| Conductive PLA | ~15 Ω·cm | Comfortable — overqualified |
+| Conductive PU foam | 10²–10⁵ Ω·cm | Works, but needs cutting |
+| TPU-ESD | 10⁶–10⁹ Ω·cm | Marginal to dead |
+| Dissipative (pink) foam | 10⁶–10⁹ Ω and up | No |
 
-- [RS PRO ESD foam](https://uk.rs-online.com/web/p/anti-static-packaging/8153509) — stocks both types, check each SKU
-- [Desco conductive foam](https://www.electronicsdatasheets.com/parts/desco-industries-inc/12667) — reliable brand to search for at Digi-Key
-- [Protektive Pak pink dissipative](https://www.gotopac.com/protektive-pak-dissipative-foam-pink.html) — linked as what *not* to buy
+Order-of-magnitude figures, not datasheet values. The Conductive PLA number is a
+typical vendor figure and has not been confirmed against the materialize.cc
+catalogue.
 
-Cheapest source of all: the black foam ICs ship stuck into.
+**Home-printer fallback:** copper tape works fine and costs nothing if you
+already have it. It is just less repeatable, so prefer the printed puck when
+publishing numbers anyone else will rely on.
 
-**Printed conductive alternatives were considered and rejected** — see
-[`docs/DECISIONS.md`](../docs/DECISIONS.md). Catalogue check on
-materialize.cc returned exactly one conductive material (Conductive PLA, FDM,
-rigid) and no conductive SLS powder of any kind.
+**Not possible, for the record:** printing the electrode as part of the TPU body.
+SLS is one powder per build, there is no conductive TPU powder, and no
+multi-material SLS. The electrode must be a separate part.
 
-## 3. The print
+## 3. The body
 
 SLS Flexible TPU. Design constraints:
 
 - **1.0 mm minimum wall** (flexible walls distort during depowdering); 1.0–1.5 mm
-  is the comfortable range
+  comfortable
 - **Keep the sensing wall thin** — overlay thickness dominates sensitivity far
   more than electrode size does
 - **Two escape holes ≥3.5 mm** at the low points of any trapped cavity; a
   floating shell is by definition a trap. The USB-C aperture can serve as one
-- **Anchor the board to the core, never the floating shell**
+- **Anchor the board to the core, never the floating shell** — otherwise plugging
+  a cable in deflects the shell and false-triggers
 - **Stretch-in slot** sized under the board so it pops through and the TPU closes
   around it — keeps the body one piece with no fasteners
 
+For test coupons, ordinary FDM TPU filament is fine and much faster to iterate
+on. Numbers will shift when you move to SLS, because SLS TPU is porous and
+absorbs moisture — re-measure before freezing any geometry.
+
 ## Open risks
 
-1. **Foam-on-pad contact reliability.** Elegant, and conductive foam is used as a
-   grounding gasket in real products, but compressed contact is less bulletproof
-   than solder. Fallback is one short wire. The serial telemetry shows
-   intermittency immediately.
-2. **Fractional sensitivity of a full-volume electrode.** Large electrode, large
-   baseline, small percentage change. May need to fill most rather than all.
-3. **Triboelectric static off SLS TPU.** Rubbing a porous elastomer in dry air
-   next to a high-impedance sense line. No SLS-TPU-specific data was found.
-   Mitigate with a series resistor on the sense line, a TVS diode, and a ground
+1. **Fractional sensitivity of a large electrode.** Big electrode, big baseline,
+   small percentage change. Filling most of the volume may beat filling all of
+   it. First thing the rig measures.
+2. **Triboelectric static off SLS TPU.** A porous elastomer rubbed in dry air
+   beside a high-impedance sense line. No SLS-TPU-specific data found anywhere.
+   Mitigate with a series resistor on the sense line, a TVS diode and a ground
    guard. **Only shows up on a real printed part — the top unknown.**
-4. **Moisture.** SLS parts are porous; absorbed moisture and skin oil shift the
-   dielectric baseline. The firmware's drift tracking handles the slow component.
+3. **Moisture.** SLS parts are porous; absorbed moisture and skin oil shift the
+   baseline. The firmware's drift tracking handles the slow component.
+4. **Wire-to-puck contact.** The puck has a slot so a stripped wire end is
+   trapped when it seats. Simple, but unproven — the serial telemetry shows
+   intermittency immediately.
