@@ -1,90 +1,90 @@
 # Bill of materials
 
-| # | Part | Role | How you get it |
-|---|---|---|---|
-| 1 | Seeed XIAO SAMD21 | USB-C, acts as a keyboard | ~$7, widely stocked |
-| 2 | One tactile switch | Detects the press | ~$0.10, universally available |
-| 3 | Body | The soft shell, and the button | **Printed** — one piece, SLS TPU |
-| 4 | Two short wires | Switch → GPIO and GND | Any hookup wire |
+Two parts and a print. Both parts are on Digi-Key, so it is one order.
 
-Two solder joints. No PCB, no USB-C receptacle, no CC resistors, no electrode,
-no conductive material, no fasteners, no assembly beyond seating the board.
+| # | Item | Part | Digi-Key | Qty | ~Each |
+|---|---|---|---|---|---|
+| 1 | Microcontroller | [Seeed XIAO SAMD21](https://www.digikey.com/en/products/detail/seeed-technology-co-ltd/102010328/11506471) | `1597-102010328-ND` | 3 | $5.40 |
+| 2 | Switch | [Same Sky TS02-66-50-BK-100-LCR-D](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/TS02-66-50-BK-100-LCR-D/15634294) | `2223-TS02-66-50-BK-100-LCR-D-ND` | 10 | ~$0.30 |
+| 3 | Wire | 26–30 AWG stranded, two short lengths | — | — | — |
+| 4 | Body | Printed from [`stl/body.stl`](stl/body.stl) | — | 1 | — |
 
-## How the body becomes the button
+Order three boards. They are $5 each and the first one you solder to is the
+one you will want to change your mind about.
 
-The outer shell is carried on a thin continuous skirt. Press anywhere on it and
-the shell translates downward; a plunger hanging from its underside passes
-through a hole in the base and actuates a single switch. "Press anywhere" is
-mechanical, not electrical.
+## Why Digi-Key and not Seeed
 
-A **continuous skirt** rather than discrete ribs, because it supports the whole
-perimeter — pressing near the rim translates the shell instead of tilting it.
-Tilt is the failure mode that would break press-anywhere, and it is what
-[`test-rig.scad`](test-rig.scad) (`part="press"`) exists to measure.
+Seeed does not sell discrete tactile switches — their catalogue is boards and
+Grove modules, so a Same Sky part number is not available there. Digi-Key is an
+authorised Seeed distributor, which is why the XIAO is listed above, so one
+Digi-Key order covers both. The reverse is not possible.
 
-## 1. XIAO SAMD21
+Seeed's own US warehouse page excludes the XIAO series from free shipping and
+directs customers to authorised US distributors for faster delivery. Digi-Key
+ships domestically from Minnesota, typically next day.
 
-21 × 17.8 mm with the USB-C connector already on it, so the board *is* the port.
-Native USB means it enumerates as a keyboard with no extra hardware.
+## Why this switch
 
-Open hardware — Seeed publishes the full package:
+| Requirement | This part | |
+|---|---|---|
+| Footprint | 6 × 6 mm | matches the seat |
+| Height | 5.50 mm | accommodated; shortens the funnel |
+| Travel | 0.25 mm typ (0.35 max) | the 0.8 mm gap clears it |
+| Force | **100 gf** | the lightest 6 × 6 through-hole made |
+| Life | 100,000 cycles | highest in the series — life rises as force falls |
+| Mounting | through-hole | legs pass through the bridge; solder from below |
 
-- [Schematic (PDF)](https://files.seeedstudio.com/wiki/Seeeduino-XIAO/res/Seeeduino-XIAO-v1.0-SCH-191112.pdf)
-- [KiCad project](https://files.seeedstudio.com/wiki/Seeeduino-XIAO/res/XIAO_SAMD21_v2.1_SCH&PCB_20260304.zip)
-- [3D model](https://files.seeedstudio.com/wiki/Seeeduino-XIAO/res/seeeduino-xiao-samd21-3d-model.zip) — needed for the CAD pocket
-- [Wiki](https://wiki.seeedstudio.com/Seeeduino-XIAO/)
+**Force was the deciding variable.** The 4.30 mm variant of this series would
+have matched the CAD exactly, but only exists at 160 gf. Height is a free
+parameter here — there is 10.8 mm of internal space and a taller switch simply
+shortens the plunger — while force is not. So the shorter part was given up.
 
-Stocked by [The Pi Hut](https://thepihut.com/products/seeed-xiao-samd21),
-[Farnell](https://ie.farnell.com/seeed-studio/102010388/xiao-board-arm-arduino-board/dp/4060347),
-[Universal Solder](https://www.universal-solder.ca/product/seeed-studio-xiao-samd21/),
-Seeed direct.
+**Do not substitute a generic 6 × 6 switch.** Marketplace listings publish no
+operating force, which is precisely the spec that decides whether the device
+feels good. The 13-week figure on the Digi-Key page is the *manufacturer's*
+lead time; stock was ~6,400, so it ships now. `LCR` was chosen over the
+otherwise identical `SCR` for the same reason — `SCR` showed a 20-week lead.
 
-Note: the board's hardware capacitive touch is no longer used. It is still the
-right board — small, USB-C, native HID — but any USB-capable microcontroller
-would now do.
+## Rejected
 
-## 2. The switch
+| Option | Why not |
+|---|---|
+| TS38-9898-39-CL-450-SMT | 450 gf — roughly 3× a normal button. Also 9.85 mm and SMT |
+| Tactile switch assortment | Varies by size and height, publishes no force at all |
+| Omron D2F (~25 gf) | Genuinely lighter, but 12.8 × 6.5 mm — the pocket would need redrawing. The fallback if 100 gf feels stiff through TPU |
+| USB-C extender | Relocates the port but adds bulk: the male plug protrudes ~7 mm from the XIAO. Insurance, not a requirement |
 
-A standard 6 × 6 mm tactile switch, wired between any GPIO and GND with the
-internal pull-up enabled. Lower actuation force is better; around 50 gf is
-typical and anything lighter helps.
+## Measure these when the parts arrive
 
-This is the most available component in existence. There is no sourcing
-guidance to give beyond "buy a tactile switch."
+Two numbers in the CAD are inferred from the series norm rather than read off a
+datasheet. Both are small and both break the fit if wrong.
 
-## 3. The body
+- **Pin span** — `leg_span` is 7.0 mm. If it is off, the relief slots miss and
+  the switch will not seat.
+- **Body/actuator split** — assumed 3.5 mm body plus 2.0 mm actuator to make up
+  the stated 5.50 mm. This sets the plunger length and the pre-travel gap.
 
-One piece, SLS Flexible TPU. Design constraints:
+## The body
 
-- **1.0 mm minimum wall** — flexible walls distort during depowdering; 1.0–1.5 mm
-  comfortable
-- **Two escape holes ≥3.5 mm** per cavity, at the low points in the cleaning
-  orientation. The shell cavity is a powder trap by definition; the plunger
-  clearance hole serves as one
-- **Anchor the board to the base, never the floating shell** — otherwise plugging
-  in a cable deflects the shell and false-triggers
-- **Stretch-in slot** sized under the board so it pops through and the TPU closes
-  around it — keeps the body one piece with no fasteners
+One piece, SLS Flexible TPU, 47.1 × 47.4 × 15.0 mm.
 
-FDM TPU is fine for iterating on the press feel, but it is anisotropic and
-layer-bonded where SLS is closer to isotropic, so the *ranking* of stiffnesses
-will transfer and the absolute feel will not. Confirm on SLS before freezing.
+- **1.0 mm minimum wall** for SLS TPU; the thinnest feature here is the 0.8 mm
+  hinge ring, which is deliberately below that and needs checking on a print
+- **Open underside** apart from a 3.6 mm rim — this is the assembly access and
+  the powder escape both
+- **No openings in the top skin.** All flexure is thickness varied from inside
+
+FDM TPU is fine for checking fit and feel, but it is layer-bonded and
+anisotropic where SLS is closer to isotropic. The ranking of stiffnesses
+transfers; the absolute feel does not.
 
 ## Open risks
 
-1. **Edge-press tilt.** Pressing the rim may tilt the shell rather than
-   translating it, so the plunger misses. The whole point of the press coupon.
-   If the skirt alone can't solve it, the fallbacks are a stiffer shell on a
-   softer skirt, or a dome that buckles.
-2. **Travel and feel.** Too little travel feels dead, too much feels vague.
-   Tune `skirt_t` and `skirt_h` in the rig.
-3. **Flexure fatigue.** TPU flexures are durable and the switch is rated for
-   100k+ cycles, but neither has been cycled here.
-
-## What this BOM used to say
-
-Earlier revisions specified a capacitive electrode — first conductive foam, then
-conductive PLA, then conductive TPU. All of that is gone. A mechanical switch
-removed the electrode entirely and with it every sourcing problem, the
-triboelectric risk, the moisture drift, the calibration, and the conflict
-between "conductive" and "SLS". See [`docs/DECISIONS.md`](../docs/DECISIONS.md).
+1. **Does 100 gf feel right through the hinge?** The user's force is 100 gf
+   *plus* whatever the TPU costs, and that surcharge is unmeasured. The pad
+   travels 1.05 mm, which is a lot for a 0.8 mm hinge over a 2.5 mm span.
+2. **Deliberate preload is not available.** SLS holds about ±0.3 mm while switch
+   travel is 0.25 mm, so the variation exceeds the whole stroke. Force
+   reduction belongs to the hinge — thinner, wider, or a larger pad.
+3. **Sharp thickness steps** at 1.8 → 0.8 → 2.0 mm. Stress concentrations, and
+   the hinge is where it will fatigue. Worth chamfering once the force is right.
