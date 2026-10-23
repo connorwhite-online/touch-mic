@@ -44,6 +44,12 @@ board_y = -10.0;   // pushed clear of the dish quadrant
 /* [Switch] */
 sw        = 6.0;
 sw_seat_w = 1.2;
+// Through-hole legs protrude ~3.5mm below the body. Without relief the
+// switch bottoms out on the bridge and never seats. Slots let the pins pass
+// into the open underside, where the wires can be soldered after seating.
+leg_span  = 7.0;   // across the pin rows
+leg_slot_w = 2.2;
+leg_slot_l = 8.5;
 sw_seat_h = 1.6;
 // Same Sky TS02-66-50-BK-100-LCR-D: 6x6 body, 5.50mm total height, 100 gf.
 // Chosen for force, not height: the 4.30mm variant of this series only comes
@@ -123,15 +129,25 @@ module cavity(off = wall) {
 // with no floor the only way to get it is a bar anchored at both ends.
 // Oversized in x so it runs past the wall on both sides and joins the shell.
 module bridge() {
-    intersection() {
-        difference() { solid(); cavity(); union() {} }
-        translate([bridge_x - bridge_w / 2, -60, 0])
-            cube([bridge_w, 120, floor_t]);
-    }
-    intersection() {
-        linear_extrude(height = floor_t) plan_profile();
-        translate([bridge_x - bridge_w / 2, -60, 0])
-            cube([bridge_w, 120, floor_t]);
+    difference() {
+        union() {
+            intersection() {
+                difference() { solid(); cavity(); }
+                translate([bridge_x - bridge_w / 2, -60, 0])
+                    cube([bridge_w, 120, floor_t]);
+            }
+            intersection() {
+                linear_extrude(height = floor_t) plan_profile();
+                translate([bridge_x - bridge_w / 2, -60, 0])
+                    cube([bridge_w, 120, floor_t]);
+            }
+        }
+        // leg relief: pins pass through into the open underside, where the
+        // wires can be soldered with the switch already seated
+        for (sx = [-1, 1])
+            translate([sw_x + sx * leg_span / 2 - leg_slot_w / 2,
+                       sw_y - leg_slot_l / 2, -1])
+                cube([leg_slot_w, leg_slot_l, floor_t + 2]);
     }
 }
 
@@ -208,7 +224,6 @@ module body() {
         difference() {
             union() {
                 difference() { solid(); cavity(); }
-                bridge();
                 board_bay();
                 switch_seat();
             }
@@ -218,7 +233,13 @@ module body() {
                 linear_extrude(height = floor_t + 1)
                     offset(r = -rim_w) plan_profile();
 
-            // the indent itself, then the two thickness zones under it
+                // leg relief through the bridge
+            for (sx = [-1, 1])
+                translate([sw_x + sx * leg_span / 2 - leg_slot_w / 2,
+                           sw_y - leg_slot_l / 2, -1])
+                    cube([leg_slot_w, leg_slot_l, floor_t + 2]);
+
+        // the indent itself, then the two thickness zones under it
             dish_cut();
             zone(pad_d, 0, pad_t);
             zone(hinge_od, pad_d, hinge_t);
@@ -234,6 +255,7 @@ module body() {
                             cylinder(h = wall + 6, d = usb_t, $fn = 32);
                     }
         }
+        bridge();
         plunger();
     }
 }
