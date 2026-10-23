@@ -16,23 +16,27 @@ include <BOSL2/isosurface.scad>
 part = "form";   // "form" | "section"
 
 /* [Form] */
-// [x, y, z, r]. Low centres, modest radii: a stone, not a dome. Because the
-// field blends, neighbouring lobes swell into each other — the finished form
-// is fuller than the spheres suggest.
+// [x, y, z, r]. Pillowy and deliberately uneven: one dominant mass, lobes at
+// different heights so the crown swells rather than domes, and a low broad
+// lobe that spreads the base like the thing has settled under its own weight.
+// Radii vary a lot on purpose — equal lobes read as manufactured, not gummy.
 lobes = [
-    [-12.5,  -2.3, 5.0, 8.5],
-    [ 12.5,   3.5, 4.8, 8.0],
-    [  1.0, -11.5, 4.6, 7.6],
-    [ -3.5,  11.5, 4.5, 7.4],
+    [ -5.0,  -1.0, 4.6, 8.4],   // dominant mass, off-centre
+    [  8.0,   4.0, 4.0, 6.6],
+    [ -1.0, -10.0, 3.4, 5.8],
+    [-11.0,   7.0, 3.8, 6.2],
+    [ 13.0,  -6.0, 3.0, 5.0],   // small tip, breaks the symmetry
+    [  3.0,   9.0, 4.4, 5.4],   // raised: reads as a pillow on the crown
+    [ -3.0,  -2.0, 2.0, 8.8],   // the slump: low and broad
 ];
 
-voxel    = 0.4;   // smaller = smoother surface, slower render
+voxel    = 0.35;   // smaller = smoother surface, slower render
 isovalue = 1.0;
 
 // cutoff bounds each ball's influence. Without it, eleven balls summing with
 // infinite reach push the field above the isovalue everywhere and the result
 // is simply the bounding box, filled solid.
-cutoff_k = 3.0;   // cutoff = cutoff_k * r. Larger = softer, fuller blending
+cutoff_k = 2.5;   // cutoff = cutoff_k * r. Larger = softer, fuller blending
 
 module blob(iso = isovalue) {
     metaballs(
