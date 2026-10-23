@@ -9,7 +9,7 @@
 // small radius at the base. One edge language governs the whole form.
 
 /* [Plan silhouette] */
-R0  = 19.5;      // mean radius
+R0  = 23.0;      // mean radius
 pts = 180;       // points around the plan
 
 // [amplitude, phase deg] for the 1st, 2nd and 3rd harmonics.
@@ -23,8 +23,8 @@ harmonics = [
 ];
 
 /* [Section] */
-H     = 17.0;    // overall height
-R_top = 10.0;    // top roll-over. Large = pillowy, small = slab-like
+H     = 15.0;    // overall height: a pad, not a dome
+R_top = 6.0;     // small roll = flat-ish top face, which the dish needs
 R_bot = 1.8;     // small base radius so it doesn't look die-cut
 steps = 140;     // loft resolution
 

@@ -39,29 +39,47 @@ fit     = 0.5;    // clearance per side
 rail_h  = 3.4;
 rail_w  = 1.8;
 lip_d   = 1.5;    // retention lip the PCB snaps past
-board_y = -5.0;
+board_y = -10.0;   // pushed clear of the dish quadrant
 
 /* [Switch] */
 sw        = 6.0;
 sw_seat_w = 1.2;
 sw_seat_h = 1.6;
+// Same Sky TS02-66-50-BK-100-LCR-D: 6x6 body, 5.50mm total height, 100 gf.
+// Chosen for force, not height: the 4.30mm variant of this series only comes
+// at 160 gf, and height is free here while force is not.
+// The body/actuator split is inferred from the series' typical 3.5mm body;
+// confirm against the datasheet when the part arrives.
 sw_body_h = 3.5;
-sw_act_h  = 0.8;
+sw_act_h  = 2.0;   // 3.5 + 2.0 = 5.50mm total
 sw_x      = 9.0;
-sw_y      = 10.0;
+sw_y      = 7.0;
 
 /* [Press] */
 plunger_d = 7.0;
 gap       = 0.8;
 
-/* [Waist flexure] */
-waist_z    = 4.0;   // above the shelves, below the crown
-waist_h    = 4.0;
-waist_wall = 1.0;
+/* [Touch dish] */
+// A gently indented pad in the flat-ish top face, inboard of the edge. The
+// rim stays full thickness and stiff; only the dish floor flexes. This
+// replaces the waist flexure: the whole shell no longer has to move, so an
+// edge press cannot tilt it and a knock on the flank does nothing.
+dish_d     = 15.0;   // the visible indent, across
+dish_depth = 1.3;    // how far it dips below the top face
+// The outer skin is CONTINUOUS -- no slots, no gaps. All flexure is thickness
+// varied from the inside, in three zones:
+//   pad    thick, stiff: moves as a piston rather than bowing
+//   hinge  thin ring around it: this is what actually bends
+//   wall   full thickness beyond: rigid surround
+pad_d      = 10.0;   // stiff piston
+hinge_od   = 15.0;   // hinge ring outer diameter (matches the dish edge)
+pad_t      = 1.8;    // material over the pad
+hinge_t    = 0.8;    // material over the hinge -- THE force dial
+funnel_d   = 8.5;    // top of the funnel under the pad
 
 // ---------------------------------------------------------------- derived
 
-bridge_y = 10.0;   // runs under the switch
+bridge_x = 9.0;    // runs under the switch, along y
 
 usb_dir  = 180;
 usb_r    = rad(usb_dir);
@@ -71,6 +89,30 @@ usb_t    = 3.6;
 sw_top   = floor_t + sw_body_h + sw_act_h;
 board_x0 = -(usb_r - wall - 0.5);
 board_cx = board_x0 + board_l / 2;
+
+// A spherical cap of depth dish_depth across dish_d.
+function dish_R() = ((dish_d * dish_d) / 4 + dish_depth * dish_depth) / (2 * dish_depth);
+
+module dish_cut(drop = 0) {
+    translate([sw_x, sw_y, H - dish_depth + dish_R() - drop])
+        sphere(r = dish_R(), $fn = 96);
+}
+
+// The volume BELOW the cap surface dropped by `drop`, within a disc or
+// annulus. Not the shifted sphere itself: a sphere's interior lies ABOVE its
+// lowest point, so subtracting that removes the skin rather than the space
+// under it.
+module zone(d_outer, d_inner, drop) {
+    difference() {
+        translate([sw_x, sw_y, -1])
+            difference() {
+                cylinder(h = H + 1, d = d_outer, $fn = 96);
+                if (d_inner > 0)
+                    translate([0, 0, -1]) cylinder(h = H + 3, d = d_inner, $fn = 96);
+            }
+        dish_cut(drop);
+    }
+}
 
 module cavity(off = wall) {
     solid(off, floor_t, H - off - floor_t, R_top - off, 0.1);
@@ -83,13 +125,13 @@ module cavity(off = wall) {
 module bridge() {
     intersection() {
         difference() { solid(); cavity(); union() {} }
-        translate([-60, bridge_y - bridge_w / 2, 0])
-            cube([120, bridge_w, floor_t]);
+        translate([bridge_x - bridge_w / 2, -60, 0])
+            cube([bridge_w, 120, floor_t]);
     }
     intersection() {
-        translate([0, 0, 0]) linear_extrude(height = floor_t) plan_profile();
-        translate([-60, bridge_y - bridge_w / 2, 0])
-            cube([120, bridge_w, floor_t]);
+        linear_extrude(height = floor_t) plan_profile();
+        translate([bridge_x - bridge_w / 2, -60, 0])
+            cube([bridge_w, 120, floor_t]);
     }
 }
 
@@ -149,47 +191,50 @@ module switch_seat() {
     }
 }
 
+// Funnels from the underside of the stiff pad down to a short plunger on the
+// switch. Tapered so the pad's area is gathered into the actuator rather than
+// loading the skin in bending.
 module plunger() {
-    intersection() {
-        cavity();
-        translate([sw_x, sw_y, sw_top + gap])
-            cylinder(h = 40, d = plunger_d, $fn = 48);
-    }
+    pad_under = H - dish_depth - pad_t;
+    top_z     = sw_top + gap;
+    translate([sw_x, sw_y, top_z])
+        cylinder(h = pad_under - top_z, d1 = plunger_d, d2 = funnel_d, $fn = 64);
 }
 
 // ---------------------------------------------------------------- body
 
 module body() {
-    difference() {
-        union() {
-            difference() { solid(); cavity(); }
-            bridge();
-            board_bay();
-            switch_seat();
-            plunger();
-        }
-        // open underside, leaving the perimeter rim
-        translate([0, 0, -1])
-            linear_extrude(height = floor_t + 1)
-                offset(r = -rim_w) plan_profile();
+    union() {
+        difference() {
+            union() {
+                difference() { solid(); cavity(); }
+                bridge();
+                board_bay();
+                switch_seat();
+            }
 
-        // compliant waist
-        intersection() {
-            difference() { cavity(waist_wall); cavity(wall); }
-            translate([0, 0, waist_z]) cylinder(h = waist_h, r = 300, $fn = 8);
-        }
+            // open underside, leaving the perimeter rim
+            translate([0, 0, -1])
+                linear_extrude(height = floor_t + 1)
+                    offset(r = -rim_w) plan_profile();
 
-        // USB-C aperture. Starts 1.5 outside the flank and runs wall+6, so it
-        // stops inside the cavity. A long cut from far away punches through
-        // and leaves a second slot on the opposite flank.
-        translate([-(usb_r + 1.5), board_y, usb_z])
-            rotate([0, 90, 0])
-                hull() {
-                    translate([0,  (usb_w - usb_t) / 2, 0])
-                        cylinder(h = wall + 6, d = usb_t, $fn = 32);
-                    translate([0, -(usb_w - usb_t) / 2, 0])
-                        cylinder(h = wall + 6, d = usb_t, $fn = 32);
-                }
+            // the indent itself, then the two thickness zones under it
+            dish_cut();
+            zone(pad_d, 0, pad_t);
+            zone(hinge_od, pad_d, hinge_t);
+
+            // USB-C aperture. Starts just outside the flank and stops inside
+            // the cavity; a long cut from far away punches straight through.
+            translate([-(usb_r + 1.5), board_y, usb_z])
+                rotate([0, 90, 0])
+                    hull() {
+                        translate([0,  (usb_w - usb_t) / 2, 0])
+                            cylinder(h = wall + 6, d = usb_t, $fn = 32);
+                        translate([0, -(usb_w - usb_t) / 2, 0])
+                            cylinder(h = wall + 6, d = usb_t, $fn = 32);
+                    }
+        }
+        plunger();
     }
 }
 
