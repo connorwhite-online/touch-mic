@@ -1,107 +1,87 @@
-// touch-mic — body, low-profile pass
+// touch-mic — body
 //
-// An asymmetric organic pebble with a flat bottom. One piece, SLS TPU.
-// Roughly 80 mm across and 13.5 mm tall — a stone on the desk, not a dome.
+// The metaball form from blob.scad, shelled, with the internals: a plunger
+// hanging from the crown onto a tactile switch, a cradle for the XIAO, a
+// USB-C aperture, a compliant waist, and a service slot in the floor.
 //
-// Shelling note: the hull of a set of spheres is the Minkowski sum of a sphere
-// with the convex hull of its centres. So shrinking every radius by the wall
-// thickness, centres unmoved, is an EXACT uniform inward offset. A naive
-// scaled-down copy would drift thick at the lobes; this does not.
+// Shelling is done with two isovalues rather than an offset, because you
+// cannot offset an implicit surface uniformly. Measured on this form:
 //
-// The low profile is what forces the layout: the switch and the board sit side
-// by side on the floor rather than stacked, because the whole interior is only
-// about 9 mm tall.
+//   iso 1.00  outer          top z 18.19   width 40.55
+//   iso 1.25  crown 1.80mm   sides 1.02mm
+//   iso 1.50  crown 2.73mm   sides 1.94mm   <- used
+//
+// The wall is deliberately not uniform: a broad crown has a gentler field
+// gradient than a steep flank. That suits this design — a stiff crown
+// transmits an edge press to the plunger instead of denting locally, while
+// the thinner flank is where the waist flexure wants to be.
 //
 //   openscad -D 'part="body"'    -o body.stl    body.scad
 //   openscad -D 'part="section"' -o section.stl body.scad
 
-part = "body";   // "body" | "section" | "plan"
+include <blob.scad>
 
-/* [Form] */
-// [x, y, z, r]. Low centres and modest radii keep the crown near-flat; the
-// asymmetry lives in plan, not elevation.
-lobes = [
-    [  0,   0, 3.0, 10.8],
-    [ 15,  -4, 3.0, 10.4],
-    [ 27,   3, 2.9,  9.6],
-    [ 36,  -2, 2.8,  8.8],
-    [-14,   5, 3.0, 10.4],
-    [-26,  -3, 2.9,  9.8],
-    [-34,   4, 2.8,  8.6],
-    [  5,  13, 2.9,  9.6],
-    [ -6, -13, 3.0, 10.0],
-    [ 17,   9, 2.9,  9.2],
-    [-18, -10, 2.9,  9.4],
-];
+part = "body";   // "body" | "section"
 
-wall     = 2.0;    // SLS TPU floor is 1.0; 2.0 gives the crown some stiffness
-floor_t  = 2.2;    // closed flat bottom
+iso_outer = 1.00;
+iso_inner = 1.50;
+
+floor_t   = 2.2;    // closed flat bottom
 
 /* [Press] */
-// A band of reduced wall low on the body is the flexure: press anywhere on the
-// crown and the shell settles onto the switch.
-waist_z  = 3.2;
-waist_h  = 4.0;
-waist_w  = 1.0;    // the softness dial — thinner is a lighter press
+switch_h  = 4.3;    // tactile switch actuator height above the floor
+gap       = 0.8;    // pre-travel before the plunger touches the switch
 plunger_d = 7;
-switch_h = 4.3;    // tactile switch, actuator above the floor it sits on
-gap      = 0.8;    // pre-travel before the switch is touched
+plunger_x = 8;      // offset from centre: the board takes the other side
+plunger_y = 0;
+
+/* [Waist flexure] */
+waist_z   = 3.0;
+waist_h   = 4.5;
+waist_iso = 1.28;   // thins the flank over the band; higher = thinner = softer
 
 /* [Electronics] */
-board_l  = 22.0;   // pocket, not part: XIAO SAMD21 is 21 x 17.8
-board_w  = 19.0;
-board_x  = -22;    // off to one side; the cable exits -x
-usb_w    = 10.0;
-usb_h    = 4.2;
-usb_z    = floor_t + 1.9;
-retain_h = 3.2;    // low walls that locate the board without stacking height
+board_l   = 22.0;   // pocket, not part: XIAO SAMD21 is 21 x 17.8
+board_w   = 19.0;
+board_x   = -7;
+retain_h  = 3.4;
+usb_w     = 10.0;
+usb_h     = 4.2;
+usb_z     = floor_t + 1.9;
 
-$fn = 72;
+// ---------------------------------------------------------------- pieces
 
-// ---------------------------------------------------------------- form
-
-module lobe_hull(shrink = 0) {
-    hull()
-        for (l = lobes)
-            translate([l[0], l[1], l[2]])
-                sphere(r = max(0.1, l[3] - shrink));
+module cut_below(z) {
+    translate([0, 0, z - 200]) cube([500, 500, 400], center = true);
 }
 
-// Outer form: everything below the ground plane removed.
-module outer() {
-    difference() {
-        lobe_hull(0);
-        translate([0, 0, -200]) cube([500, 500, 400], center = true);
-    }
-}
+module outer() { difference() { blob(iso_outer); cut_below(0); } }
 
-// Inner cavity: floor sits at floor_t, so the bottom is closed.
-module cavity() {
-    difference() {
-        lobe_hull(wall);
-        translate([0, 0, floor_t - 200]) cube([500, 500, 400], center = true);
-    }
-}
+// The void. Floor at floor_t, so the bottom is closed.
+module cavity() { difference() { blob(iso_inner); cut_below(floor_t); } }
 
-function crown_z() = lobes[0][2] + lobes[0][3];
-
+// Intersecting a tall column with the cavity makes the plunger meet the
+// crown's inner surface exactly, whatever its local height — no need to know
+// the crown height at this x,y, and it follows the form if the lobes move.
 module plunger() {
-    bot = floor_t + switch_h + gap;
-    translate([0, 0, bot])
-        cylinder(h = crown_z() - wall - bot + 0.01, d = plunger_d);
+    intersection() {
+        cavity();
+        translate([plunger_x, plunger_y, floor_t + switch_h + gap])
+            cylinder(h = 40, d = plunger_d, $fn = 48);
+    }
 }
 
-// Low retaining walls locating the board on the floor. Clipped to the cavity
-// so they can never punch through the shell when a lobe moves.
-module board_retainer() {
+// Low walls locating the board on the floor, clipped to the cavity so they
+// can never punch through the shell.
+module board_cradle() {
     intersection() {
         cavity();
         translate([board_x, 0, floor_t])
             difference() {
                 translate([0, 0, retain_h / 2])
                     cube([board_l + 3.6, board_w + 3.6, retain_h], center = true);
-                translate([0, 0, retain_h / 2])
-                    cube([board_l, board_w, retain_h + 1], center = true);
+                translate([0, 0, retain_h / 2 + 0.6])
+                    cube([board_l, board_w, retain_h], center = true);
             }
     }
 }
@@ -111,28 +91,32 @@ module body() {
         union() {
             difference() { outer(); cavity(); }
             plunger();
-            board_retainer();
+            board_cradle();
         }
-        // Compliant waist: remove a sliver from inside the wall over a band.
+
+        // Compliant waist: thin the flank over a band by removing the sliver
+        // between the inner wall and a slightly larger isosurface.
         intersection() {
-            difference() { lobe_hull(waist_w); lobe_hull(wall); }
-            translate([0, 0, waist_z]) cylinder(h = waist_h, r = 300);
+            difference() { blob(waist_iso); blob(iso_inner); }
+            translate([0, 0, waist_z]) cylinder(h = waist_h, r = 300, $fn = 8);
         }
-        // USB-C aperture through the -x wall
-        translate([board_x - 60, 0, usb_z])
+
+        // USB-C aperture through the -x flank
+        translate([-60, 0, usb_z])
             rotate([0, 90, 0])
                 hull() {
-                    translate([0,  (usb_w - usb_h) / 2, 0]) cylinder(h = 90, d = usb_h);
-                    translate([0, -(usb_w - usb_h) / 2, 0]) cylinder(h = 90, d = usb_h);
+                    translate([0,  (usb_w - usb_h) / 2, 0]) cylinder(h = 90, d = usb_h, $fn = 32);
+                    translate([0, -(usb_w - usb_h) / 2, 0]) cylinder(h = 90, d = usb_h, $fn = 32);
                 }
-        // Service slot in the floor: stretch it open to drop the parts in.
-        // Doubles as the powder escape, which a closed cavity requires.
+
+        // Service slot: stretch it open to drop the parts in. Also the powder
+        // escape a closed cavity requires for SLS.
         translate([0, 0, -1])
             hull() {
-                translate([ 12, 0, 0]) cylinder(h = floor_t + 2, d = 9);
-                translate([-12, 0, 0]) cylinder(h = floor_t + 2, d = 9);
+                translate([ 9, 2, 0]) cylinder(h = floor_t + 2, d = 9, $fn = 32);
+                translate([-9, 2, 0]) cylinder(h = floor_t + 2, d = 9, $fn = 32);
             }
-        translate([24, -8, -1]) cylinder(h = floor_t + 2, d = 4.5);
+        translate([2, -11, -1]) cylinder(h = floor_t + 2, d = 4.5, $fn = 24);
     }
 }
 
@@ -141,6 +125,5 @@ module body() {
 if (part == "body") body();
 else if (part == "section")
     difference() { body(); translate([-250, -250, -10]) cube([500, 250, 200]); }
-else if (part == "plan")
-    projection(cut = false) body();
-else echo("set part to body, section or plan");
+else if (part == "plunger") plunger();
+else echo("set part to body, section or plunger");
