@@ -142,14 +142,44 @@ local function findControl()
     return nil, nil, "no dictation control near the focused composer", ref, fel
 end
 
--- Poll the composer until the transcript stops changing, then press Send.
--- Polling beats a fixed delay: transcription latency varies a lot, and a
--- fixed wait either sends a half-finished sentence or feels sluggish.
-local function autoSubmit(ref, fel)
-    local last, stable, tries = nil, 0, 0
+-- A transcript worth sending. A silent recording comes back as a single
+-- character, and "not empty" happily sends that as a message.
+local function hasWords(t)
+    return #t >= 3 and t:find("%w") ~= nil
+end
+
+-- Wait for Claude to finish, THEN send.
+--
+-- Two phases. First wait for the dictation control to flip back to its idle
+-- label -- that is Claude's own "finalised" signal, so no latency constant
+-- has to be guessed, and it cannot fire during a pause mid-stream the way
+-- text-stability alone can. Then wait for the text to stop changing, to catch
+-- any trailing insert. Only then look for the send button, which does not
+-- exist until there is text to send.
+local function autoSubmit(ref, fel, ctl)
+    local phase, tries, last, stable = "finalising", 0, nil, 0
     local timer
     timer = hs.timer.doEvery(0.15, function()
         tries = tries + 1
+        if tries > 80 then timer:stop(); return end   -- 12s ceiling
+
+        if phase == "finalising" then
+            local done = false
+            -- Cheap path: re-read the label on the control we pressed.
+            if ctl then
+                local ok, d = pcall(function() return ctl:attributeValue("AXDescription") end)
+                if ok and d and IDLE[tostring(d)] then done = true end
+                if not ok then ctl = nil end   -- element went stale
+            end
+            -- Fallback, only occasionally: a fresh search is far dearer than
+            -- one attribute read, so do not run it every tick.
+            if not done and not ctl and tries % 4 == 0 then
+                if select(1, climbFind(fel, IDLE)) then done = true end
+            end
+            if done then phase = "settling" end
+            return
+        end
+
         local txt = ""
         if fel then
             local ok, v = pcall(function() return fel:attributeValue("AXValue") end)
@@ -157,15 +187,13 @@ local function autoSubmit(ref, fel)
         end
         if txt ~= "" and txt == last then stable = stable + 1 else stable = 0 end
         last = txt
-        if (stable >= 2 and txt ~= "") or tries > 34 then
+        if stable >= 2 then
             timer:stop()
-            if txt ~= "" then
+            if hasWords(txt) then
                 local btn = select(1, climbFind(fel, SEND))
                 if btn then
                     btn:performAction("AXPress")
                 elseif hs.application.frontmostApplication():name() == APP then
-                    -- Only when Claude is frontmost, so a stray Return cannot
-                    -- land in somebody else's window.
                     hs.eventtap.keyStroke({}, "return", 0)
                 end
             end
@@ -173,10 +201,12 @@ local function autoSubmit(ref, fel)
     end)
 end
 
+-- Returns the control it pressed, so the caller can watch that element flip
+-- back to idle rather than searching the tree again.
 function stopDictation()
     local el, state = findControl()
-    if el and state == "recording" then el:performAction("AXPress"); return true end
-    return false
+    if el and state == "recording" then el:performAction("AXPress"); return el end
+    return nil
 end
 
 function cancelDictation()
@@ -210,8 +240,8 @@ local function onRelease()
     if hs.timer.secondsSinceEpoch() - pressAt < TAP_THRESHOLD then
         return   -- a tap: leave it recording, and leave the text to review
     end
-    stopDictation()
-    if AUTO_SEND_ON_HOLD then autoSubmit(pressRef, pressFel) end
+    local ctl = stopDictation()
+    if AUTO_SEND_ON_HOLD then autoSubmit(pressRef, pressFel, ctl) end
 end
 
 hs.hotkey.bind({}, "F13", onPress, onRelease)
