@@ -108,9 +108,79 @@ module reach() {
         label(station_w + x, station_d / 2, reach_wall, str(x), 3);
 }
 
+// ---------------------------------------------------------------- press coupon
+
+// Four cells, each a flat top disc carried on a thin conical skirt, with a
+// plunger hanging from the disc's underside and passing freely through a hole
+// in the base. Sit the coupon over a tactile switch on a breadboard; the
+// plunger reaches through and presses it.
+//
+// A continuous skirt is used rather than discrete ribs because it supports the
+// whole perimeter, so pressing near the edge translates the disc down instead
+// of tilting it. Tilt is the failure mode that would break "press anywhere".
+//
+// The question it answers: which disc thickness lets you actuate the switch
+// from ANY point on the disc, including the rim, without the thing feeling
+// stiff and dead in the middle.
+
+/* [Press coupon] */
+disc_ts   = [1.0, 1.5, 2.0, 2.5];  // top disc thickness per cell
+disc_r    = 18;
+base_r    = 24;
+skirt_h   = 9;
+skirt_t   = 0.9;   // thinner = softer. The main thing to retune after v1
+base_t    = 2.5;
+plunger_d = 5;
+hole_d    = 8;     // plunger clearance, switch access AND powder escape
+escape_d  = 4;     // second escape hole, required: the cavity traps powder
+cell_pitch = 52;
+
+module press_cell(t) {
+    union() {
+        difference() {
+            union() {
+                cylinder(h = base_t, r = base_r, $fn = 96);
+                translate([0, 0, base_t])
+                    difference() {
+                        cylinder(h = skirt_h, r1 = base_r, r2 = disc_r, $fn = 96);
+                        translate([0, 0, -0.1])
+                            cylinder(h = skirt_h + 0.2,
+                                     r1 = base_r - skirt_t,
+                                     r2 = disc_r - skirt_t, $fn = 96);
+                    }
+                translate([0, 0, base_t + skirt_h])
+                    cylinder(h = t, r = disc_r, $fn = 96);
+            }
+            translate([0, 0, -0.1]) cylinder(h = base_t + 0.2, d = hole_d, $fn = 48);
+            translate([base_r * 0.62, 0, -0.1])
+                cylinder(h = base_t + 0.2, d = escape_d, $fn = 32);
+        }
+        // Added after the difference so the hole does not eat it. It hangs
+        // from the disc and floats free through the base.
+        cylinder(h = base_t + skirt_h, d = plunger_d, $fn = 48);
+    }
+}
+
+module press() {
+    for (i = [0 : len(disc_ts) - 1]) {
+        x = (i % 2) * cell_pitch;
+        y = floor(i / 2) * cell_pitch;
+        translate([x, y, 0]) {
+            press_cell(disc_ts[i]);
+            // On the top face: the skirt overhangs the base, so anything
+            // labelled down there is hidden inside the cavity.
+            translate([0, -disc_r + 6, base_t + skirt_h + disc_ts[i]])
+                linear_extrude(label_h)
+                    text(str(disc_ts[i]), size = 6,
+                         halign = "center", valign = "center");
+        }
+    }
+}
+
 // ---------------------------------------------------------------- render
 
 if      (part == "ladder") ladder();
 else if (part == "puck")   puck();
 else if (part == "reach")  reach();
-else                       echo("set part to ladder, puck or reach");
+else if (part == "press")  press();
+else                       echo("set part to ladder, puck, reach or press");

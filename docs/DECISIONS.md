@@ -162,3 +162,43 @@ floating-shell concept put it.
 **General principle this established:** for an open-source device, prefer a part
 that is a *file* over a part that is *bought and modified*. Reproducibility beats
 bench convenience.
+
+## 2026-10-22 — Drop capacitive sensing entirely; use a tactile switch
+
+**Supersedes every electrode decision above.** There is no electrode any more.
+
+**Why:** the premise was never examined. The project opened with the words
+"capacitive touch sensor" and that was taken as a requirement rather than an
+option. It isn't one — the device only needs to know *you are touching it*, and
+a switch answers that question with a commodity part.
+
+What a switch deleted, in one move:
+
+| Problem | Status |
+|---|---|
+| Electrode material (three reversals: foam → PLA → TPU) | Gone — no electrode |
+| Single-vendor $80 conductive filament | Gone |
+| Triboelectric static into the GPIO | Gone |
+| Moisture and humidity baseline drift | Gone |
+| Fractional sensitivity of a large electrode | Gone |
+| Threshold tuning, noise floor, calibration | Gone |
+| "Conductive material is FDM-only" vs "body must be SLS" | Gone — SLS restored |
+
+Every open risk previously listed in `hardware/BOM.md` was a capacitive problem.
+
+**The original concept was already mechanical.** The floating shell on
+compressible supports, described early on, is a plunger. The design had a button
+in it from the start; the only assumption was that the thing underneath had to
+sense capacitance.
+
+**What is lost:** zero-force actuation. Capacitive responds to a feather touch;
+a switch needs real pressure. For a dictation trigger sitting on a desk,
+deliberate pressure is arguably a feature — it cannot fire when brushed past.
+
+**What is unchanged:** the entire host side. The device still holds `F13`,
+Hammerspoon still presses Claude's dictation control, both gestures still work.
+That chain was always independent of how the device decides it is being touched.
+
+**Lesson worth keeping:** three reversals were spent optimising a component that
+should not have existed. When a sub-problem keeps resisting, check whether it is
+load-bearing before solving it again.
