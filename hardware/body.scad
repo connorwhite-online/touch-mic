@@ -42,22 +42,30 @@ lip_d   = 1.5;    // retention lip the PCB snaps past
 board_y = -10.0;   // pushed clear of the dish quadrant
 
 /* [Switch] */
-sw        = 6.0;
+// Measured off the manufacturer's STEP model, which corrected the datasheet
+// drawing in two places: the body is 6.7 across the terminal roots, NOT 6.0
+// square, and the leads reach 3.5 below the seating plane, not ~2.9.
+//   body 6.7 x 6.0, top at 3.5;  stem top at 5.0  -> 1.5 of stem
+//   4 leads at +/-3.55 and +/-2.33, each about 0.8 x 1.1
+sw_w      = 6.7;   // across the terminals
+sw_d      = 6.0;
+lead_drop = 3.5;   // below the seating plane
 sw_seat_w = 1.2;
 // Through-hole legs protrude ~3.5mm below the body. Without relief the
 // switch bottoms out on the bridge and never seats. Slots let the pins pass
 // into the open underside, where the wires can be soldered after seating.
-leg_span  = 7.0;   // across the pin rows
-leg_slot_w = 2.2;
-leg_slot_l = 8.5;
+leg_span  = 7.1;   // lead centres, +/-3.55 off the STEP
+leg_slot_w = 1.8;
+leg_slot_l = 7.2;
+
 sw_seat_h = 1.6;
-// Same Sky TS02-66-50-BK-100-LCR-D: 6x6 body, 5.50mm total height, 100 gf.
-// Chosen for force, not height: the 4.30mm variant of this series only comes
-// at 160 gf, and height is free here while force is not.
-// The body/actuator split is inferred from the series' typical 3.5mm body;
-// confirm against the datasheet when the part arrives.
+// Same Sky TS02-66-50-BK-100-LCR-D, from the TS02 datasheet (LCR drawing):
+//   body 3.5 +/-0.2 mm, actuator 5.0 mm off the PCB -> 1.5 mm of stem
+//   press force 1.0 N +/-0.3 = 102 gf +/-31, travel 0.25 mm
+// Chosen for force, not height: the 4.30mm variant only comes at 160 gf, and
+// height is free here while force is not.
 sw_body_h = 3.5;
-sw_act_h  = 2.0;   // 3.5 + 2.0 = 5.50mm total
+sw_act_h  = 1.5;   // 3.5 + 1.5 = 5.00mm off the seat
 sw_x      = 9.0;
 sw_y      = 7.0;
 
@@ -193,16 +201,17 @@ module board_bay() {
 // Three walls on the bridge, open toward -y so the switch slides in from the
 // access aperture rather than needing to pass through a floor.
 module switch_seat() {
-    ss = sw + 2 * sw_seat_w;
+    sx = sw_w + 0.5 + 2 * sw_seat_w;
+    sy = sw_d + 0.5 + 2 * sw_seat_w;
     intersection() {
         cavity();
         translate([sw_x, sw_y, floor_t])
             difference() {
-                translate([-ss / 2, -ss / 2, 0]) cube([ss, ss, sw_body_h + 0.6]);
-                translate([-(sw / 2 + 0.25), -(sw / 2 + 0.25), -1])
-                    cube([sw + 0.5, sw + 0.5, sw_body_h + 2.6]);
-                translate([-(sw / 2 - 0.6), -ss, -1])
-                    cube([sw - 1.2, ss, sw_body_h + 2.6]);
+                translate([-sx / 2, -sy / 2, 0]) cube([sx, sy, sw_body_h + 0.6]);
+                translate([-(sw_w / 2 + 0.25), -(sw_d / 2 + 0.25), -1])
+                    cube([sw_w + 0.5, sw_d + 0.5, sw_body_h + 2.6]);
+                translate([-(sw_w / 2 - 0.6), -sy, -1])
+                    cube([sw_w - 1.2, sy, sw_body_h + 2.6]);
             }
     }
 }
@@ -268,8 +277,8 @@ module dummy_board() {
 }
 
 module dummy_switch() {
-    translate([sw_x - sw / 2, sw_y - sw / 2, floor_t])
-        cube([sw, sw, sw_body_h]);
+    translate([sw_x - sw_w / 2, sw_y - sw_d / 2, floor_t])
+        cube([sw_w, sw_d, sw_body_h]);
     translate([sw_x, sw_y, floor_t + sw_body_h])
         cylinder(h = sw_act_h, d = 3.5, $fn = 24);
 }
